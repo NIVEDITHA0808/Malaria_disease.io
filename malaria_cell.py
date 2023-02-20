@@ -97,29 +97,6 @@ model.save('model_vgg19.h5')
 
 model=load_model("model_vgg19.h5")
 
-img=image.load_img("/content/drive/MyDrive/Dataset/Test/Parasite/C39P4thinF_original_IMG_20150622_110115_cell_115.png", target_size=(224,224,3))
-
-x=image.img_to_array(img)
-x
-
-x.shape
-
-#reshaping
-x=x.astype('float32')/255
-
-x=np.expand_dims(x,axis=0)
-img_data=preprocess_input(x)
-img_data.shape
-
-model.predict(img_data)
-
-a=np.argmax(model.predict(img_data),axis=1)
-
-if a==1:
-  print("the patient is uninfected")
-else:
-  print("the patient is infected")
-
 def results(data, model):
   img=image.load_img(data, target_size=(224,224,3))
   x=image.img_to_array(img)
