@@ -64,29 +64,6 @@ test_set=test_datagen.flow_from_directory("/content/drive/MyDrive/Dataset/Test",
 #fit the model for training and validation
 r=model.fit(training_set,validation_data=test_set, epochs=2, steps_per_epoch=len(training_set), validation_steps=len(test_set))
 
-if tf.test.gpu_device_name():
-  print("default gpu name: {}", format(tf.test.gpu_device_name()))
-else:
-  print("install gpu")
-
-plt.plot(r.history['loss'],"r",label='train loss')
-plt.plot(r.history['val_loss'],"b",label='train val_loss')
-plt.xlabel("epochs")
-plt.ylabel("Loss")
-plt.legend()
-plt.show()
-plt.plot(r.history['accuracy'],"orange",label='train accuracy')
-plt.plot(r.history['val_accuracy'],"g",label='train val_accuracy')
-plt.xlabel("epochs")
-plt.ylabel("Accuracy")
-plt.legend()
-plt.show()
-
-y_pred=model.predict(test_set)
-
-#probability of it being parasite and uninfected respectively
-y_pred
-
 # we need the max in the matrix
 y_pred=np.argmax(y_pred,axis=1)
 
@@ -96,8 +73,23 @@ y_pred
 model.save('model_vgg19.h5')
 
 model=load_model("model_vgg19.h5")
+# Define a flask app
+app = Flask(__name__)
 
-def results(data, model):
+# Model saved with Keras model.save()
+MODEL_PATH = 'models/model_vgg19.h5'
+
+# Load your trained model
+model._make_predict_function()          # Necessary
+# print('Model loaded. Start serving...')
+
+# You can also use pretrained model from Keras
+# Check https://keras.io/applications/
+#from keras.applications.resnet50 import ResNet50
+#model = ResNet50(weights='imagenet')
+#model.save('')
+
+def results(data, MODEL_PATH):
   img=image.load_img(data, target_size=(224,224,3))
   x=image.img_to_array(img)
   x1=x.astype('float32')/255
@@ -109,5 +101,34 @@ def results(data, model):
   else:
     print("the patient is infected")
 
-data="/content/drive/MyDrive/Dataset/Test/Parasite/C39P4thinF_original_IMG_20150622_110115_cell_115.png"
-results(data,model)
+@app.route('/', methods=['GET'])
+def index():
+    # Main page
+    return render_template('index.html')
+
+
+@app.route('/predict', methods=['GET', 'POST'])
+def upload():
+    if request.method == 'POST':
+        # Get the file from post request
+        f = request.files['file']
+
+        # Save the file to ./uploads
+        basepath = os.path.dirname(__file__)
+        file_path = os.path.join(
+            basepath, 'uploads', secure_filename(f.filename))
+        f.save(file_path)
+
+        # Make prediction
+        preds = results(file_path, model)
+
+        # Process your result for human
+        # pred_class = preds.argmax(axis=-1)            # Simple argmax
+        pred_class = decode_predictions(preds, top=1)   # ImageNet Decode
+        result = str(pred_class[0][0][1])               # Convert to string
+        return result
+    return None
+
+
+if __name__ == '__main__':
+    app.run(debug=True)
